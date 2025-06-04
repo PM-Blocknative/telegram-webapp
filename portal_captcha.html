@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Verification</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f0f0; color: #333; text-align: center; padding: 15px;}
+        .container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; width: 100%;}
+        h1 { color: #007bff; margin-top: 0;}
+        p { margin-bottom: 20px; line-height: 1.6;}
+        button { background-color: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; display: none; /* Initially hidden */}
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .footer { margin-top: 20px; font-size: 12px; color: #777; }
+        .h-captcha { margin-bottom: 20px; display: flex; justify-content: center; }
+    </style>
+</head>
+    <div class="container">
+        <h1>Portal Verification</h1>
+        <p>Please complete the hCaptcha challenge below to prove you're human and get your invite link.</p>
+        
+        <div id="captcha-container">
+            <!-- hCaptcha widget will be rendered here -->
+            <div class="h-captcha" data-sitekey="a6e82c3a-3eb6-4a42-b64a-b1e80c8cecc8" data-callback="onCaptchaSuccess" data-expired-callback="onCaptchaExpired" data-error-callback="onCaptchaError"></div>
+        </div>
+        
+        <button id="submitButton" disabled>Verified! Proceed</button>
+        
+        <div id="loading" style="display: none;">
+            <p>Processing...</p>
+        </div>
+        <div id="message" style="margin-top: 15px;"></div>
+    </div>
+
+    <div class="footer">
+        Secure Verification
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready(); 
+        tg.expand(); // Expand the Web App for better visibility
+
+        const submitButton = document.getElementById('submitButton');
+        const captchaContainer = document.getElementById('captcha-container');
+        const loadingDiv = document.getElementById('loading');
+        const messageDiv = document.getElementById('message');
+        let sessionId = '';
+        let hCaptchaToken = null;
+
+        // **IMPORTANT**: Replace "YOUR_HCAPTCHA_SITE_KEY" in the HTML above
+        // with your actual hCaptcha Site Key.
+
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            sessionId = urlParams.get('session_id');
+            if (!sessionId) {
+                throw new Error('Session ID is missing.');
+            }
+        } catch (e) {
+            console.error("Initialization Error:", e);
+            messageDiv.innerHTML = '<p style="color: red;">Error: Could not initialize. Session ID missing.</p>';
+            captchaContainer.style.display = 'none'; // Hide captcha if session ID is missing
+            // tg.close(); // Consider closing if unrecoverable
+        }
+
+        window.onCaptchaSuccess = function(token) {
+            console.log("hCaptcha success. Token:", token);
+            hCaptchaToken = token;
+            messageDiv.innerHTML = '<p style="color: green;">Captcha verified! Click Proceed.</p>';
+            submitButton.disabled = false;
+            submitButton.style.display = 'block'; // Show the button
+            // Optional: Hide the hCaptcha widget after success if desired
+            // document.querySelector('.h-captcha').style.display = 'none';
+        };
+
+        window.onCaptchaExpired = function() {
+            console.log("hCaptcha token expired.");
+            hCaptchaToken = null;
+            messageDiv.innerHTML = '<p style="color: orange;">Captcha expired. Please try again.</p>';
+            submitButton.disabled = true;
+            submitButton.style.display = 'none';
+            // hcaptcha.reset(); // Reset the hCaptcha widget
+        };
+
+        window.onCaptchaError = function(error) {
+            console.error("hCaptcha error:", error);
+            hCaptchaToken = null;
+            messageDiv.innerHTML = '<p style="color: red;">Captcha error: ' + error + '. Please refresh.</p>';
+            submitButton.disabled = true;
+            submitButton.style.display = 'none';
+        };
+        
+        submitButton.addEventListener('click', () => {
+            if (!hCaptchaToken) {
+                messageDiv.innerHTML = '<p style="color: red;">Please complete the captcha first.</p>';
+                return;
+            }
+
+            captchaContainer.style.display = 'none';
+            submitButton.style.display = 'none';
+            loadingDiv.style.display = 'block';
+            messageDiv.innerHTML = '';
+
+            const captchaData = {
+                sessionId: sessionId,
+                success: true,
+                captchaResponse: hCaptchaToken // Send hCaptcha token to bot
+            };
+
+            tg.sendData(JSON.stringify(captchaData));
+            // Telegram WebApp usually closes automatically after sendData
+            // If you want to ensure it closes or show a message:
+            // messageDiv.innerHTML = '<p>Verification submitted! You can close this window.</p>';
+            // setTimeout(() => tg.close(), 2000);
+        });
+    </script>
+</body>
+</html> 
