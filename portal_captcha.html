@@ -18,12 +18,12 @@
         .h-captcha { margin-bottom: 20px; display: flex; justify-content: center; }
     </style>
 </head>
+<body>
     <div class="container">
         <h1>Portal Verification</h1>
         <p>Please complete the hCaptcha challenge below to prove you're human and get your invite link.</p>
         
         <div id="captcha-container">
-            <!-- hCaptcha widget will be rendered here -->
             <div class="h-captcha" data-sitekey="a6e82c3a-3eb6-4a42-b64a-b1e80c8cecc8" data-callback="onCaptchaSuccess" data-expired-callback="onCaptchaExpired" data-error-callback="onCaptchaError"></div>
         </div>
         
@@ -42,29 +42,29 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready(); 
-        tg.expand(); // Expand the Web App for better visibility
+        tg.expand();
 
         const submitButton = document.getElementById('submitButton');
         const captchaContainer = document.getElementById('captcha-container');
         const loadingDiv = document.getElementById('loading');
         const messageDiv = document.getElementById('message');
-        let sessionId = '';
+        let currentUserId = null;
         let hCaptchaToken = null;
 
-        // **IMPORTANT**: Replace "YOUR_HCAPTCHA_SITE_KEY" in the HTML above
-        // with your actual hCaptcha Site Key.
+        // IMPORTANT: Replace "YOUR_HCAPTCHA_SITE_KEY" in the HTML above
 
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            sessionId = urlParams.get('session_id');
-            if (!sessionId) {
-                throw new Error('Session ID is missing.');
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+                currentUserId = tg.initDataUnsafe.user.id;
+                console.log("User ID obtained:", currentUserId);
+            } else {
+                throw new Error('Could not retrieve user information from Telegram Web App.');
             }
         } catch (e) {
             console.error("Initialization Error:", e);
-            messageDiv.innerHTML = '<p style="color: red;">Error: Could not initialize. Session ID missing.</p>';
-            captchaContainer.style.display = 'none'; // Hide captcha if session ID is missing
-            // tg.close(); // Consider closing if unrecoverable
+            messageDiv.innerHTML = `<p style="color: red;">Error: Could not initialize. ${e.message}</p>`;
+            captchaContainer.style.display = 'none';
+            // Consider not closing tg.close() here to allow user to see the error.
         }
 
         window.onCaptchaSuccess = function(token) {
@@ -72,9 +72,7 @@
             hCaptchaToken = token;
             messageDiv.innerHTML = '<p style="color: green;">Captcha verified! Click Proceed.</p>';
             submitButton.disabled = false;
-            submitButton.style.display = 'block'; // Show the button
-            // Optional: Hide the hCaptcha widget after success if desired
-            // document.querySelector('.h-captcha').style.display = 'none';
+            submitButton.style.display = 'block';
         };
 
         window.onCaptchaExpired = function() {
@@ -83,20 +81,21 @@
             messageDiv.innerHTML = '<p style="color: orange;">Captcha expired. Please try again.</p>';
             submitButton.disabled = true;
             submitButton.style.display = 'none';
-            // hcaptcha.reset(); // Reset the hCaptcha widget
+            if (window.hcaptcha) window.hcaptcha.reset();
         };
 
         window.onCaptchaError = function(error) {
             console.error("hCaptcha error:", error);
             hCaptchaToken = null;
-            messageDiv.innerHTML = '<p style="color: red;">Captcha error: ' + error + '. Please refresh.</p>';
+            messageDiv.innerHTML = '<p style="color: red;">Captcha error: ' + error + '. Please refresh or try again later.</p>';
             submitButton.disabled = true;
             submitButton.style.display = 'none';
         };
         
         submitButton.addEventListener('click', () => {
-            if (!hCaptchaToken) {
-                messageDiv.innerHTML = '<p style="color: red;">Please complete the captcha first.</p>';
+            if (!hCaptchaToken || !currentUserId) {
+                messageDiv.innerHTML = '<p style="color: red;">Error: User ID or Captcha token is missing. Please complete the captcha.</p>';
+                if (window.hcaptcha && !hCaptchaToken) window.hcaptcha.reset();
                 return;
             }
 
@@ -105,17 +104,13 @@
             loadingDiv.style.display = 'block';
             messageDiv.innerHTML = '';
 
-            const captchaData = {
-                sessionId: sessionId,
+            const webAppData = {
+                userId: currentUserId,
                 success: true,
-                captchaResponse: hCaptchaToken // Send hCaptcha token to bot
+                captchaResponse: hCaptchaToken 
             };
 
-            tg.sendData(JSON.stringify(captchaData));
-            // Telegram WebApp usually closes automatically after sendData
-            // If you want to ensure it closes or show a message:
-            // messageDiv.innerHTML = '<p>Verification submitted! You can close this window.</p>';
-            // setTimeout(() => tg.close(), 2000);
+            tg.sendData(JSON.stringify(webAppData));
         });
     </script>
 </body>
