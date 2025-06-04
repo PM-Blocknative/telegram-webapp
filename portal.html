@@ -277,19 +277,47 @@
                 }
                 
                 // Send verification data back to the bot
-                tg.sendData(JSON.stringify(verificationData));
-                log('tg.sendData() called successfully');
-                
-                // The sendData is async but doesn't return a promise
-                // Wait a bit to see if any errors occur
-                setTimeout(() => {
-                    log('No errors after 1 second, assuming success');
+                try {
+                    log('Attempting to send verification data to bot...');
+                    
+                    // Wrap sendData in a Promise
+                    const sendDataPromise = new Promise((resolve, reject) => {
+                        try {
+                            // Set up error handler
+                            const errorHandler = (error) => {
+                                log(`WebApp error during sendData: ${error}`, 'error');
+                                reject(error);
+                            };
+                            
+                            if (tg.onEvent) {
+                                tg.onEvent('error', errorHandler);
+                            }
+                            
+                            // Attempt to send data
+                            log('Calling tg.sendData()...');
+                            tg.sendData(JSON.stringify(verificationData));
+                            
+                            // Wait for potential errors
+                            setTimeout(() => {
+                                if (tg.onEvent) {
+                                    tg.offEvent('error', errorHandler);
+                                }
+                                log('Data sent successfully with no errors');
+                                resolve();
+                            }, 2000);
+                        } catch (e) {
+                            reject(e);
+                        }
+                    });
+                    
+                    await sendDataPromise;
+                    log('Verification data sent successfully');
                     
                     // Show success message
                     statusMessage.className = 'status-message success';
                     statusMessage.textContent = 'Verification complete! You can close this window.';
                     
-                    // Show close button and auto-close after a delay
+                    // Show close button
                     closeButton.style.display = 'inline-block';
                     tg.MainButton.hide();
                     
@@ -301,7 +329,14 @@
                             log(`Error auto-closing: ${error}`, 'error');
                         }
                     }, 3000);
-                }, 1000);
+                    
+                } catch (error) {
+                    log(`Critical error sending verification data: ${error}`, 'error');
+                    statusMessage.className = 'status-message error';
+                    statusMessage.textContent = 'Error completing verification. Please try again.';
+                    tg.MainButton.hideProgress();
+                    isVerifying = false;
+                }
             } catch (error) {
                 log(`Error sending verification data: ${error}`, 'error');
                 statusMessage.className = 'status-message error';
