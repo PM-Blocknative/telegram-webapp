@@ -208,8 +208,8 @@
             isVerifying = true;
             log('Setting up verification data...');
             
-            // Get session ID from Telegram's start_param
-            const sessionId = tg.initDataUnsafe.start_param;
+            // Get session ID from URL hash
+            const sessionId = window.location.hash.slice(1); // Remove the # character
             log(`Session ID: ${sessionId}`);
             
             const verificationData = {
