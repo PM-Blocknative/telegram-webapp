@@ -213,11 +213,26 @@
             // Get session ID from initData
             let sessionId;
             try {
-                const initData = JSON.parse(tg.initData);
-                if (initData && initData.start_param) {
-                    const startData = JSON.parse(decodeURIComponent(initData.start_param));
-                    sessionId = startData.sessionId;
-                    log(`Found session ID in initData: ${sessionId}`);
+                // Parse the raw initData string
+                const rawInitData = tg.initData;
+                log(`Raw initData: ${rawInitData}`);
+                
+                // Split the initData into key-value pairs
+                const params = new URLSearchParams(rawInitData);
+                
+                // Get the start_param if it exists
+                if (params.has('start_param')) {
+                    const startParam = params.get('start_param');
+                    log(`Found start_param: ${startParam}`);
+                    try {
+                        const startData = JSON.parse(decodeURIComponent(startParam));
+                        sessionId = startData.sessionId;
+                        log(`Parsed session ID: ${sessionId}`);
+                    } catch (e) {
+                        log(`Error parsing start_param: ${e}`);
+                    }
+                } else {
+                    log('No start_param found in initData');
                 }
             } catch (error) {
                 log(`Error parsing initData: ${error}`);
