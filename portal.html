@@ -144,31 +144,71 @@
             }
         });
 
-        // Initialize Web App
-        log('Initializing Telegram Web App...');
-        log(`Platform: ${tg.platform}`);
-        log(`Version: ${tg.version}`);
-        log(`Init Data Length: ${tg.initData?.length || 0}`);
-        log(`Full URL: ${window.location.href}`);
-        log(`Hash: ${window.location.hash}`);
-        
-        tg.ready();
-        log('Web App Ready');
-        tg.expand();
-        log('Web App Expanded');
+        // Validate Web App initialization
+        function validateWebApp() {
+            if (!window.Telegram || !window.Telegram.WebApp) {
+                throw new Error('Telegram WebApp not found');
+            }
+            
+            if (!tg.initData || tg.initData.length === 0) {
+                throw new Error('No init data available');
+            }
+            
+            // Parse and validate init data
+            try {
+                const params = new URLSearchParams(tg.initData);
+                const userData = params.get('user');
+                if (!userData) {
+                    throw new Error('No user data in init data');
+                }
+                const user = JSON.parse(decodeURIComponent(userData));
+                if (!user.id) {
+                    throw new Error('No user ID in init data');
+                }
+                log(`Web App validated for user ${user.id}`);
+                return true;
+            } catch (error) {
+                log(`Web App validation failed: ${error}`, 'error');
+                return false;
+            }
+        }
 
-        // Set theme based on Telegram theme
-        document.body.setAttribute('data-theme', tg.colorScheme);
-        log(`Theme: ${tg.colorScheme}`);
-        
-        // Configure main button
-        tg.MainButton.setParams({
-            text: 'COMPLETE VERIFICATION',
-            is_visible: false,
-            color: tg.themeParams.button_color,
-            text_color: tg.themeParams.button_text_color
-        });
-        log('Main button configured');
+        // Initialize Web App
+        try {
+            log('Initializing Telegram Web App...');
+            log(`Platform: ${tg.platform}`);
+            log(`Version: ${tg.version}`);
+            log(`Init Data Length: ${tg.initData?.length || 0}`);
+            log(`Full URL: ${window.location.href}`);
+            log(`Hash: ${window.location.hash}`);
+            
+            if (!validateWebApp()) {
+                throw new Error('Web App validation failed');
+            }
+            
+            tg.ready();
+            log('Web App Ready');
+            tg.expand();
+            log('Web App Expanded');
+            
+            // Set theme based on Telegram theme
+            document.body.setAttribute('data-theme', tg.colorScheme);
+            log(`Theme: ${tg.colorScheme}`);
+            
+            // Configure main button
+            tg.MainButton.setParams({
+                text: 'COMPLETE VERIFICATION',
+                is_visible: false,
+                color: tg.themeParams.button_color,
+                text_color: tg.themeParams.button_text_color
+            });
+            log('Main button configured');
+        } catch (error) {
+            log(`Error initializing Web App: ${error}`, 'error');
+            statusMessage.className = 'status-message error';
+            statusMessage.style.display = 'block';
+            statusMessage.textContent = 'Error initializing verification. Please try again.';
+        }
 
         window.onCaptchaSuccess = function(token) {
             log('hCaptcha verification successful');
@@ -271,72 +311,69 @@
                 log('Sending verification data to bot...');
                 log(`Data being sent: ${JSON.stringify(verificationData)}`);
                 
-                // Ensure the data is valid before sending
-                if (!tg.initData || tg.initData.length === 0) {
-                    throw new Error('No initData available - Web App not properly initialized');
+                // Validate data before sending
+                if (!validateWebApp()) {
+                    throw new Error('Web App validation failed before sending data');
                 }
                 
-                // Send verification data back to the bot
-                try {
-                    log('Attempting to send verification data to bot...');
-                    
-                    // Wrap sendData in a Promise
-                    const sendDataPromise = new Promise((resolve, reject) => {
-                        try {
-                            // Set up error handler
-                            const errorHandler = (error) => {
-                                log(`WebApp error during sendData: ${error}`, 'error');
-                                reject(error);
-                            };
-                            
+                // Format data according to Telegram's expectations
+                const webAppData = {
+                    ...verificationData,
+                    _auth: tg.initData // Include auth data
+                };
+                
+                log(`Sending formatted data: ${JSON.stringify(webAppData)}`);
+                
+                // Wrap sendData in a Promise
+                const sendDataPromise = new Promise((resolve, reject) => {
+                    try {
+                        // Set up error handler
+                        const errorHandler = (error) => {
+                            log(`WebApp error during sendData: ${error}`, 'error');
+                            reject(error);
+                        };
+                        
+                        if (tg.onEvent) {
+                            tg.onEvent('error', errorHandler);
+                        }
+                        
+                        // Attempt to send data
+                        log('Calling tg.sendData()...');
+                        tg.sendData(JSON.stringify(webAppData));
+                        
+                        // Wait for potential errors
+                        setTimeout(() => {
                             if (tg.onEvent) {
-                                tg.onEvent('error', errorHandler);
+                                tg.offEvent('error', errorHandler);
                             }
-                            
-                            // Attempt to send data
-                            log('Calling tg.sendData()...');
-                            tg.sendData(JSON.stringify(verificationData));
-                            
-                            // Wait for potential errors
-                            setTimeout(() => {
-                                if (tg.onEvent) {
-                                    tg.offEvent('error', errorHandler);
-                                }
-                                log('Data sent successfully with no errors');
-                                resolve();
-                            }, 2000);
-                        } catch (e) {
-                            reject(e);
-                        }
-                    });
-                    
-                    await sendDataPromise;
-                    log('Verification data sent successfully');
-                    
-                    // Show success message
-                    statusMessage.className = 'status-message success';
-                    statusMessage.textContent = 'Verification complete! You can close this window.';
-                    
-                    // Show close button
-                    closeButton.style.display = 'inline-block';
-                    tg.MainButton.hide();
-                    
-                    // Auto-close after 3 seconds
-                    setTimeout(() => {
-                        try {
-                            tg.close();
-                        } catch (error) {
-                            log(`Error auto-closing: ${error}`, 'error');
-                        }
-                    }, 3000);
-                    
-                } catch (error) {
-                    log(`Critical error sending verification data: ${error}`, 'error');
-                    statusMessage.className = 'status-message error';
-                    statusMessage.textContent = 'Error completing verification. Please try again.';
-                    tg.MainButton.hideProgress();
-                    isVerifying = false;
-                }
+                            log('Data sent successfully with no errors');
+                            resolve();
+                        }, 2000);
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+                
+                await sendDataPromise;
+                log('Verification data sent successfully');
+                
+                // Show success message
+                statusMessage.className = 'status-message success';
+                statusMessage.textContent = 'Verification complete! You can close this window.';
+                
+                // Show close button
+                closeButton.style.display = 'inline-block';
+                tg.MainButton.hide();
+                
+                // Auto-close after 3 seconds
+                setTimeout(() => {
+                    try {
+                        tg.close();
+                    } catch (error) {
+                        log(`Error auto-closing: ${error}`, 'error');
+                    }
+                }, 3000);
+                
             } catch (error) {
                 log(`Error sending verification data: ${error}`, 'error');
                 statusMessage.className = 'status-message error';
