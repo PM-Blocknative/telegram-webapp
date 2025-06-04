@@ -210,35 +210,33 @@
             isVerifying = true;
             log('Setting up verification data...');
             
-            // Get session ID from URL hash with validation
-            const hash = window.location.hash;
-            log(`URL Hash: ${hash}`);
-            
+            // Get session ID from initData with validation
             let sessionId;
+            let userData;
             
-            // Parse WebAppInitData to get query_id
             try {
-                // Extract and decode the tgWebAppData parameter from hash
-                const hashParams = new URLSearchParams(hash.replace('#', ''));
-                const webAppData = hashParams.get('tgWebAppData');
-                if (webAppData) {
-                    // Decode the nested parameters
-                    const decodedParams = new URLSearchParams(decodeURIComponent(webAppData));
-                    
-                    // Get query_id which serves as our session ID
-                    sessionId = decodedParams.get('query_id');
-                    if (sessionId) {
-                        log(`Found session ID from query_id: ${sessionId}`);
-                    }
+                // Parse the initData properly
+                const params = new URLSearchParams(tg.initData);
+                userData = Object.fromEntries(params);
+                
+                if (userData.user) {
+                    userData.user = JSON.parse(userData.user);
+                    log(`User data parsed: ${userData.user.id} (${userData.user.username || 'no username'})`);
+                }
+                
+                // Get query_id if it exists
+                sessionId = userData.query_id;
+                if (sessionId) {
+                    log(`Found session ID from query_id: ${sessionId}`);
+                }
+                
+                // Fallback to start_param if no query_id
+                if (!sessionId && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                    sessionId = tg.initDataUnsafe.start_param;
+                    log(`Found session ID in start_param: ${sessionId}`);
                 }
             } catch (error) {
-                log(`Error parsing WebAppInitData: ${error}`, 'error');
-            }
-            
-            // Fallback: Try to get from start_param if no query_id
-            if (!sessionId && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                sessionId = tg.initDataUnsafe.start_param;
-                log(`Found session ID in start_param: ${sessionId}`);
+                log(`Error parsing initData: ${error}`, 'error');
             }
             
             if (!sessionId) {
@@ -253,11 +251,13 @@
             log(`Using session ID: ${sessionId}`);
             
             const verificationData = {
-                userId: tg.initDataUnsafe.user?.id,
+                userId: userData?.user?.id || tg.initDataUnsafe?.user?.id,
                 timestamp: Date.now(),
                 success: true,
                 sessionId: sessionId,
-                captchaToken: hCaptchaToken
+                captchaToken: hCaptchaToken,
+                auth_date: userData?.auth_date,
+                hash: userData?.hash
             };
             log(`User ID: ${verificationData.userId}`);
             log('Verification data prepared');
