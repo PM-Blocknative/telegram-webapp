@@ -147,7 +147,7 @@
             
             try {
                 // Send verification data back to the bot
-                tg.sendData(JSON.stringify(verificationData));
+                await tg.sendData(JSON.stringify(verificationData));
                 
                 // Show success message
                 statusMessage.className = 'status-message success';
