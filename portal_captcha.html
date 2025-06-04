@@ -210,33 +210,28 @@
             isVerifying = true;
             log('Setting up verification data...');
             
-            // Get session data from initDataUnsafe
+            // Get session ID from URL query parameters
             let sessionId;
             try {
-                const webAppData = tg.initDataUnsafe;
-                log('Web App Data:', webAppData);
-                
-                if (webAppData && webAppData.start_param) {
-                    const data = JSON.parse(webAppData.start_param);
-                    if (data.type === 'verification' && data.sessionId) {
-                        sessionId = data.sessionId;
-                        log(`Found session ID in web app data: ${sessionId}`);
-                    } else {
-                        log('Invalid verification data format');
-                    }
+                const urlParams = new URLSearchParams(window.location.search);
+                sessionId = urlParams.get('session_id');
+                if (sessionId) {
+                    log(`Found session ID in URL query: ${sessionId}`);
                 } else {
-                    log('No start_param found in web app data');
+                    log('No session_id found in URL query parameters.');
                 }
             } catch (error) {
-                log(`Error parsing web app data: ${error}`);
+                log(`Error parsing URL query parameters: ${error}`);
+                // Handle error appropriately, maybe show a message to the user
             }
             
             if (!sessionId) {
-                log('ERROR: No valid session ID found');
+                log('ERROR: No session ID found in URL query parameters.');
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
-                statusMessage.textContent = 'Error: Invalid verification session. Please try again.';
+                statusMessage.textContent = 'Error: Invalid verification link. Please try again or contact support.';
                 isVerifying = false;
+                tg.MainButton.hideProgress();
                 return;
             }
             
