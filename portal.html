@@ -210,30 +210,40 @@
             isVerifying = true;
             log('Setting up verification data...');
             
-            // Get session ID from URL query parameters
+            // Get session ID from URL hash with validation
+            const hash = window.location.hash;
+            log(`URL Hash: ${hash}`);
+            
             let sessionId;
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                sessionId = urlParams.get('session_id');
-                if (sessionId) {
-                    log(`Found session ID in URL query: ${sessionId}`);
-                } else {
-                    log('No session_id found in URL query parameters.');
+            // First try to get sessionId from the original URL format
+            if (hash.startsWith('#')) {
+                const directSessionId = hash.slice(1);
+                if (directSessionId && !directSessionId.includes('=')) {
+                    sessionId = directSessionId;
+                    log(`Found direct session ID: ${sessionId}`);
                 }
-            } catch (error) {
-                log(`Error parsing URL query parameters: ${error}`);
-                // Handle error appropriately, maybe show a message to the user
+            }
+            
+            // If no direct session ID, try to get it from the pathname
+            if (!sessionId) {
+                const pathParts = window.location.pathname.split('/');
+                const lastPart = pathParts[pathParts.length - 1];
+                if (lastPart && lastPart !== 'verify') {
+                    sessionId = lastPart;
+                    log(`Found session ID in path: ${sessionId}`);
+                }
             }
             
             if (!sessionId) {
-                log('ERROR: No session ID found in URL query parameters.');
+                log('ERROR: No session ID found in URL');
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
-                statusMessage.textContent = 'Error: Invalid verification link. Please try again or contact support.';
+                statusMessage.textContent = 'Error: Invalid verification link. Please try again.';
                 isVerifying = false;
-                tg.MainButton.hideProgress();
                 return;
             }
+            
+            log(`Using session ID: ${sessionId}`);
             
             const verificationData = {
                 userId: tg.initDataUnsafe.user?.id,
