@@ -210,32 +210,27 @@
             isVerifying = true;
             log('Setting up verification data...');
             
-            // Get session ID from URL hash with validation
-            const hash = window.location.hash;
-            log(`URL Hash: ${hash}`);
-            
-            let sessionId = hash.slice(1); // Remove the # character
-            if (!sessionId) {
-                log('No session ID found in URL hash');
-                // Try getting it from the pathname
-                const pathParts = window.location.pathname.split('/');
-                const lastPart = pathParts[pathParts.length - 1];
-                if (lastPart && lastPart !== 'verify') {
-                    sessionId = lastPart;
-                    log(`Found session ID in path: ${sessionId}`);
+            // Get session ID from initData
+            let sessionId;
+            try {
+                const initData = JSON.parse(tg.initData);
+                if (initData && initData.start_param) {
+                    const startData = JSON.parse(decodeURIComponent(initData.start_param));
+                    sessionId = startData.sessionId;
+                    log(`Found session ID in initData: ${sessionId}`);
                 }
+            } catch (error) {
+                log(`Error parsing initData: ${error}`);
             }
             
             if (!sessionId) {
-                log('ERROR: No session ID found in URL');
+                log('ERROR: No session ID found in initData');
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
                 statusMessage.textContent = 'Error: Invalid verification link. Please try again.';
                 isVerifying = false;
                 return;
             }
-            
-            log(`Using session ID: ${sessionId}`);
             
             const verificationData = {
                 userId: tg.initDataUnsafe.user?.id,
