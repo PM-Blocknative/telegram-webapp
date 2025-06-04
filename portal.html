@@ -216,22 +216,29 @@
             
             let sessionId;
             
-            // Try to get session ID from Telegram Web App start param
-            if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-                sessionId = tg.initDataUnsafe.start_param;
-                log(`Found session ID in start_param: ${sessionId}`);
+            // Parse WebAppInitData to get query_id
+            try {
+                // Extract and decode the tgWebAppData parameter from hash
+                const hashParams = new URLSearchParams(hash.replace('#', ''));
+                const webAppData = hashParams.get('tgWebAppData');
+                if (webAppData) {
+                    // Decode the nested parameters
+                    const decodedParams = new URLSearchParams(decodeURIComponent(webAppData));
+                    
+                    // Get query_id which serves as our session ID
+                    sessionId = decodedParams.get('query_id');
+                    if (sessionId) {
+                        log(`Found session ID from query_id: ${sessionId}`);
+                    }
+                }
+            } catch (error) {
+                log(`Error parsing WebAppInitData: ${error}`, 'error');
             }
             
-            // Fallback: Try to get from tgWebAppStartParam
-            if (!sessionId) {
-                const searchParams = new URLSearchParams(window.location.search);
-                const hashParams = new URLSearchParams(hash.replace('#', ''));
-                
-                // Try both URL search and hash parameters
-                sessionId = searchParams.get('tgWebAppStartParam') || hashParams.get('tgWebAppStartParam');
-                if (sessionId) {
-                    log(`Found session ID in tgWebAppStartParam: ${sessionId}`);
-                }
+            // Fallback: Try to get from start_param if no query_id
+            if (!sessionId && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                sessionId = tg.initDataUnsafe.start_param;
+                log(`Found session ID in start_param: ${sessionId}`);
             }
             
             if (!sessionId) {
@@ -239,16 +246,6 @@
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
                 statusMessage.textContent = 'Error: Invalid verification link. Please try again.';
-                isVerifying = false;
-                return;
-            }
-            
-            // Validate session ID format
-            if (!/^[a-f0-9]{32}$/i.test(sessionId)) {
-                log(`ERROR: Invalid session ID format: ${sessionId}`);
-                statusMessage.className = 'status-message error';
-                statusMessage.style.display = 'block';
-                statusMessage.textContent = 'Error: Invalid verification session. Please try again.';
                 isVerifying = false;
                 return;
             }
