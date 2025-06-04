@@ -318,11 +318,12 @@
                 
                 // Format data according to Telegram's expectations
                 const webAppData = {
-                    ...verificationData,
-                    _auth: tg.initData // Include auth data
+                    userId: verificationData.userId,
+                    success: verificationData.success,
+                    captchaToken: verificationData.captchaToken
                 };
                 
-                log(`Sending formatted data: ${JSON.stringify(webAppData)}`);
+                log(`Preparing to send data: ${JSON.stringify(webAppData)}`);
                 
                 // Wrap sendData in a Promise
                 const sendDataPromise = new Promise((resolve, reject) => {
@@ -337,7 +338,7 @@
                             tg.onEvent('error', errorHandler);
                         }
                         
-                        // Attempt to send data
+                        // Attempt to send data - send as string, not JSON
                         log('Calling tg.sendData()...');
                         tg.sendData(JSON.stringify(webAppData));
                         
@@ -350,30 +351,38 @@
                             resolve();
                         }, 2000);
                     } catch (e) {
+                        log(`Error in sendData: ${e}`, 'error');
                         reject(e);
                     }
                 });
                 
-                await sendDataPromise;
-                log('Verification data sent successfully');
-                
-                // Show success message
-                statusMessage.className = 'status-message success';
-                statusMessage.textContent = 'Verification complete! You can close this window.';
-                
-                // Show close button
-                closeButton.style.display = 'inline-block';
-                tg.MainButton.hide();
-                
-                // Auto-close after 3 seconds
-                setTimeout(() => {
-                    try {
-                        tg.close();
-                    } catch (error) {
-                        log(`Error auto-closing: ${error}`, 'error');
-                    }
-                }, 3000);
-                
+                try {
+                    await sendDataPromise;
+                    log('Verification data sent successfully');
+                    
+                    // Show success message
+                    statusMessage.className = 'status-message success';
+                    statusMessage.textContent = 'Verification complete! You can close this window.';
+                    
+                    // Show close button
+                    closeButton.style.display = 'inline-block';
+                    tg.MainButton.hide();
+                    
+                    // Auto-close after 3 seconds
+                    setTimeout(() => {
+                        try {
+                            tg.close();
+                        } catch (error) {
+                            log(`Error auto-closing: ${error}`, 'error');
+                        }
+                    }, 3000);
+                } catch (error) {
+                    log(`Error completing verification: ${error}`, 'error');
+                    statusMessage.className = 'status-message error';
+                    statusMessage.textContent = 'Error completing verification. Please try again.';
+                    tg.MainButton.hideProgress();
+                    isVerifying = false;
+                }
             } catch (error) {
                 log(`Error sending verification data: ${error}`, 'error');
                 statusMessage.className = 'status-message error';
