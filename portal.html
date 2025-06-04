@@ -216,16 +216,19 @@
             
             let sessionId;
             
-            // Try to get session ID from Telegram Web App start params
+            // Try to get session ID from Telegram Web App start param
             if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
                 sessionId = tg.initDataUnsafe.start_param;
-                log(`Found session ID in Telegram start_param: ${sessionId}`);
+                log(`Found session ID in start_param: ${sessionId}`);
             }
             
-            // Fallback: Try to get from URL parameters
+            // Fallback: Try to get from tgWebAppStartParam
             if (!sessionId) {
-                const urlParams = new URLSearchParams(window.location.search);
-                sessionId = urlParams.get('tgWebAppStartParam');
+                const searchParams = new URLSearchParams(window.location.search);
+                const hashParams = new URLSearchParams(hash.replace('#', ''));
+                
+                // Try both URL search and hash parameters
+                sessionId = searchParams.get('tgWebAppStartParam') || hashParams.get('tgWebAppStartParam');
                 if (sessionId) {
                     log(`Found session ID in tgWebAppStartParam: ${sessionId}`);
                 }
