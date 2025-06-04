@@ -83,6 +83,7 @@
         
         const statusMessage = document.getElementById('statusMessage');
         let hCaptchaToken = null;
+        let isVerifying = false;
 
         // Configure main button
         tg.MainButton.setParams({
@@ -122,8 +123,10 @@
         };
 
         // Handle verification completion
-        function completeVerification() {
-            if (!hCaptchaToken) return;
+        async function completeVerification() {
+            if (!hCaptchaToken || isVerifying) return;
+            
+            isVerifying = true;
             
             // Get query parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -148,17 +151,23 @@
                 
                 // Show success message
                 statusMessage.className = 'status-message success';
-                statusMessage.textContent = 'Verification complete! You can close this window.';
+                statusMessage.textContent = 'Verification complete! Closing...';
                 
                 // Close the web app after a short delay
                 setTimeout(() => {
-                    tg.close();
-                }, 1500);
+                    try {
+                        tg.close();
+                    } catch (error) {
+                        console.error('Error closing web app:', error);
+                        window.close(); // Fallback
+                    }
+                }, 1000);
             } catch (error) {
                 console.error('Error sending verification data:', error);
                 statusMessage.className = 'status-message error';
                 statusMessage.textContent = 'Error completing verification. Please try again.';
                 tg.MainButton.hideProgress();
+                isVerifying = false;
             }
         }
 
@@ -167,7 +176,19 @@
 
         // Handle back button
         tg.BackButton.onClick(() => {
-            tg.close();
+            try {
+                tg.close();
+            } catch (error) {
+                console.error('Error closing web app:', error);
+                window.close(); // Fallback
+            }
+        });
+
+        // Prevent double submissions
+        window.addEventListener('unload', () => {
+            if (isVerifying) {
+                tg.MainButton.hideProgress();
+            }
         });
     </script>
 </body>
