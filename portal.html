@@ -215,30 +215,37 @@
             log(`URL Hash: ${hash}`);
             
             let sessionId;
-            // First try to get sessionId from the original URL format
-            if (hash.startsWith('#')) {
-                const directSessionId = hash.slice(1);
-                if (directSessionId && !directSessionId.includes('=')) {
-                    sessionId = directSessionId;
-                    log(`Found direct session ID: ${sessionId}`);
-                }
+            
+            // Try to get session ID from Telegram Web App start params
+            if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                sessionId = tg.initDataUnsafe.start_param;
+                log(`Found session ID in Telegram start_param: ${sessionId}`);
             }
             
-            // If no direct session ID, try to get it from the pathname
+            // Fallback: Try to get from URL parameters
             if (!sessionId) {
-                const pathParts = window.location.pathname.split('/');
-                const lastPart = pathParts[pathParts.length - 1];
-                if (lastPart && lastPart !== 'verify') {
-                    sessionId = lastPart;
-                    log(`Found session ID in path: ${sessionId}`);
+                const urlParams = new URLSearchParams(window.location.search);
+                sessionId = urlParams.get('tgWebAppStartParam');
+                if (sessionId) {
+                    log(`Found session ID in tgWebAppStartParam: ${sessionId}`);
                 }
             }
             
             if (!sessionId) {
-                log('ERROR: No session ID found in URL');
+                log('ERROR: No valid session ID found in Telegram Web App parameters');
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
                 statusMessage.textContent = 'Error: Invalid verification link. Please try again.';
+                isVerifying = false;
+                return;
+            }
+            
+            // Validate session ID format
+            if (!/^[a-f0-9]{32}$/i.test(sessionId)) {
+                log(`ERROR: Invalid session ID format: ${sessionId}`);
+                statusMessage.className = 'status-message error';
+                statusMessage.style.display = 'block';
+                statusMessage.textContent = 'Error: Invalid verification session. Please try again.';
                 isVerifying = false;
                 return;
             }
