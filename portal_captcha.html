@@ -3,114 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Verification</title>
+    <title>Community Portal</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f0f0; color: #333; text-align: center; padding: 15px;}
-        .container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; width: 100%;}
-        h1 { color: #007bff; margin-top: 0;}
-        p { margin-bottom: 20px; line-height: 1.6;}
-        button { background-color: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; display: none; /* Initially hidden */}
-        button:hover { background-color: #218838; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
-        .footer { margin-top: 20px; font-size: 12px; color: #777; }
-        .h-captcha { margin-bottom: 20px; display: flex; justify-content: center; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--tg-theme-bg-color, #fff);
+            color: var(--tg-theme-text-color, #000);
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        h1 {
+            color: var(--tg-theme-button-color, #2481cc);
+            margin-bottom: 20px;
+        }
+        .welcome-text {
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 30px;
+            color: var(--tg-theme-text-color, #333);
+        }
+        .verification-button {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: opacity 0.2s;
+            display: none;
+        }
+        .verification-button:hover {
+            opacity: 0.9;
+        }
+        .verification-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status-message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .h-captcha {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Portal Verification</h1>
-        <p>Please complete the hCaptcha challenge below to prove you're human and get your invite link.</p>
-        
-        <div id="captcha-container">
-            <div class="h-captcha" data-sitekey="a6e82c3a-3eb6-4a42-b64a-b1e80c8cecc8" data-callback="onCaptchaSuccess" data-expired-callback="onCaptchaExpired" data-error-callback="onCaptchaError"></div>
+        <h1>Community Portal</h1>
+        <div class="welcome-text">
+            Welcome to our community! To join, please complete the verification process.
+            This helps us maintain a safe and spam-free environment.
         </div>
-        
-        <button id="submitButton" disabled>Verified! Proceed</button>
-        
-        <div id="loading" style="display: none;">
-            <p>Processing...</p>
-        </div>
-        <div id="message" style="margin-top: 15px;"></div>
-    </div>
-
-    <div class="footer">
-        Secure Verification
+        <div class="h-captcha" data-sitekey="a6e82c3a-3eb6-4a42-b64a-b1e80c8cecc8" data-callback="onCaptchaSuccess" data-expired-callback="onCaptchaExpired" data-error-callback="onCaptchaError"></div>
+        <button id="verifyButton" class="verification-button" disabled>
+            Complete Verification
+        </button>
+        <div id="statusMessage" class="status-message" style="display: none;"></div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.ready(); 
+        tg.ready();
         tg.expand();
 
-        const submitButton = document.getElementById('submitButton');
-        const captchaContainer = document.getElementById('captcha-container');
-        const loadingDiv = document.getElementById('loading');
-        const messageDiv = document.getElementById('message');
-        let currentUserId = null;
+        const verifyButton = document.getElementById('verifyButton');
+        const statusMessage = document.getElementById('statusMessage');
         let hCaptchaToken = null;
 
-        // IMPORTANT: Replace "YOUR_HCAPTCHA_SITE_KEY" in the HTML above
-
-        try {
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
-                currentUserId = tg.initDataUnsafe.user.id;
-                console.log("User ID obtained:", currentUserId);
-            } else {
-                throw new Error('Could not retrieve user information from Telegram Web App.');
-            }
-        } catch (e) {
-            console.error("Initialization Error:", e);
-            messageDiv.innerHTML = `<p style="color: red;">Error: Could not initialize. ${e.message}</p>`;
-            captchaContainer.style.display = 'none';
-            // Consider not closing tg.close() here to allow user to see the error.
-        }
-
         window.onCaptchaSuccess = function(token) {
-            console.log("hCaptcha success. Token:", token);
+            console.log("hCaptcha verified");
             hCaptchaToken = token;
-            messageDiv.innerHTML = '<p style="color: green;">Captcha verified! Click Proceed.</p>';
-            submitButton.disabled = false;
-            submitButton.style.display = 'block';
+            verifyButton.disabled = false;
+            verifyButton.style.display = 'block';
+            statusMessage.className = 'status-message success';
+            statusMessage.style.display = 'block';
+            statusMessage.textContent = 'Captcha verified! Click the button to complete verification.';
         };
 
         window.onCaptchaExpired = function() {
-            console.log("hCaptcha token expired.");
+            console.log("hCaptcha expired");
             hCaptchaToken = null;
-            messageDiv.innerHTML = '<p style="color: orange;">Captcha expired. Please try again.</p>';
-            submitButton.disabled = true;
-            submitButton.style.display = 'none';
-            if (window.hcaptcha) window.hcaptcha.reset();
+            verifyButton.disabled = true;
+            verifyButton.style.display = 'none';
+            statusMessage.className = 'status-message error';
+            statusMessage.style.display = 'block';
+            statusMessage.textContent = 'Captcha expired. Please try again.';
+            hcaptcha.reset();
         };
 
         window.onCaptchaError = function(error) {
             console.error("hCaptcha error:", error);
             hCaptchaToken = null;
-            messageDiv.innerHTML = '<p style="color: red;">Captcha error: ' + error + '. Please refresh or try again later.</p>';
-            submitButton.disabled = true;
-            submitButton.style.display = 'none';
+            verifyButton.disabled = true;
+            verifyButton.style.display = 'none';
+            statusMessage.className = 'status-message error';
+            statusMessage.style.display = 'block';
+            statusMessage.textContent = 'Captcha error occurred. Please refresh and try again.';
         };
-        
-        submitButton.addEventListener('click', () => {
-            if (!hCaptchaToken || !currentUserId) {
-                messageDiv.innerHTML = '<p style="color: red;">Error: User ID or Captcha token is missing. Please complete the captcha.</p>';
-                if (window.hcaptcha && !hCaptchaToken) window.hcaptcha.reset();
-                return;
+
+        verifyButton.addEventListener('click', async () => {
+            try {
+                if (!hCaptchaToken) {
+                    statusMessage.className = 'status-message error';
+                    statusMessage.style.display = 'block';
+                    statusMessage.textContent = 'Please complete the captcha first.';
+                    return;
+                }
+
+                verifyButton.disabled = true;
+                statusMessage.className = 'status-message';
+                statusMessage.style.display = 'block';
+                statusMessage.textContent = 'Verifying...';
+
+                // Record verification attempt with captcha token
+                const verificationData = {
+                    userId: tg.initDataUnsafe.user.id,
+                    timestamp: Date.now(),
+                    success: true,
+                    captchaToken: hCaptchaToken
+                };
+
+                // Send verification data back to the bot
+                tg.sendData(JSON.stringify(verificationData));
+                
+                // Show success message
+                statusMessage.className = 'status-message success';
+                statusMessage.textContent = 'Verification successful! You can close this window.';
+                
+                // Close the web app after a short delay
+                setTimeout(() => tg.close(), 2000);
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                statusMessage.className = 'status-message error';
+                statusMessage.textContent = 'Verification failed. Please try again.';
+                verifyButton.disabled = false;
             }
-
-            captchaContainer.style.display = 'none';
-            submitButton.style.display = 'none';
-            loadingDiv.style.display = 'block';
-            messageDiv.innerHTML = '';
-
-            const webAppData = {
-                userId: currentUserId,
-                success: true,
-                captchaResponse: hCaptchaToken 
-            };
-
-            tg.sendData(JSON.stringify(webAppData));
         });
     </script>
 </body>
