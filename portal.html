@@ -146,11 +146,27 @@
 
         // Initialize Web App
         log('Initializing Telegram Web App...');
+        
+        // Check if Telegram WebApp is available
+        if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) {
+            log('ERROR: Telegram WebApp not available!', 'error');
+            statusMessage.className = 'status-message error';
+            statusMessage.style.display = 'block';
+            statusMessage.textContent = 'Error: This page must be opened from Telegram.';
+            return;
+        }
+        
         log(`Platform: ${tg.platform}`);
         log(`Version: ${tg.version}`);
         log(`Init Data Length: ${tg.initData?.length || 0}`);
+        log(`Init Data Raw: ${tg.initData}`);
         log(`Full URL: ${window.location.href}`);
         log(`Hash: ${window.location.hash}`);
+        
+        // Check if properly initialized
+        if (!tg.initData || tg.initData.length === 0) {
+            log('WARNING: No initData found - Web App may not be properly initialized', 'error');
+        }
         
         tg.ready();
         log('Web App Ready');
@@ -269,26 +285,39 @@
             
             try {
                 log('Sending verification data to bot...');
+                log(`Data being sent: ${JSON.stringify(verificationData)}`);
+                
+                // Ensure the data is valid before sending
+                if (!tg.initData || tg.initData.length === 0) {
+                    throw new Error('No initData available - Web App not properly initialized');
+                }
+                
                 // Send verification data back to the bot
-                await tg.sendData(JSON.stringify(verificationData));
-                log('Verification data sent successfully');
+                tg.sendData(JSON.stringify(verificationData));
+                log('tg.sendData() called successfully');
                 
-                // Show success message
-                statusMessage.className = 'status-message success';
-                statusMessage.textContent = 'Verification complete! You can close this window.';
-                
-                // Show close button and auto-close after a delay
-                closeButton.style.display = 'inline-block';
-                tg.MainButton.hide();
-                
-                // Auto-close after 3 seconds
+                // The sendData is async but doesn't return a promise
+                // Wait a bit to see if any errors occur
                 setTimeout(() => {
-                    try {
-                        tg.close();
-                    } catch (error) {
-                        log(`Error auto-closing: ${error}`, 'error');
-                    }
-                }, 3000);
+                    log('No errors after 1 second, assuming success');
+                    
+                    // Show success message
+                    statusMessage.className = 'status-message success';
+                    statusMessage.textContent = 'Verification complete! You can close this window.';
+                    
+                    // Show close button and auto-close after a delay
+                    closeButton.style.display = 'inline-block';
+                    tg.MainButton.hide();
+                    
+                    // Auto-close after 3 seconds
+                    setTimeout(() => {
+                        try {
+                            tg.close();
+                        } catch (error) {
+                            log(`Error auto-closing: ${error}`, 'error');
+                        }
+                    }, 3000);
+                }, 1000);
             } catch (error) {
                 log(`Error sending verification data: ${error}`, 'error');
                 statusMessage.className = 'status-message error';
