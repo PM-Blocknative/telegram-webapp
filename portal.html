@@ -6,49 +6,40 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Community Portal</title>
 
-  <!-- Telegram Mini-App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <!-- hCaptcha -->
   <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 
   <style>
     :root { color-scheme: var(--tg-color-scheme); }
-    body  {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      margin:   0;  padding: 16px;
-      background-color: var(--tg-theme-bg-color,  #fff);
-      color:            var(--tg-theme-text-color, #000);
-    }
-    .container      { max-width: 500px; margin: 0 auto; text-align: center;
-                      padding-bottom: env(safe-area-inset-bottom); }
-    h1              { color: var(--tg-theme-button-color, #2481cc);
-                      margin-bottom: 16px; font-size: 20px; font-weight: 600; }
-    .welcome-text   { font-size: 15px; line-height: 1.5; margin-bottom: 24px;
-                      color: var(--tg-theme-text-color, #333); opacity: .8; }
-    .status-message { margin-top: 16px; padding: 12px; border-radius: 8px;
-                      background-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
-                      font-size: 14px; }
-    .success        { color: var(--tg-theme-button-color,       #28a745); }
-    .error          { color: var(--tg-theme-destructive-text-color, #dc3545); }
-    .debug-log      { margin-top: 20px; padding: 12px; border-radius: 8px;
-                      background-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
-                      font-family: monospace; font-size: 12px; text-align: left;
-                      white-space: pre-wrap; word-break: break-all;
-                      max-height: 200px; overflow-y: auto;
-                      color: var(--tg-theme-text-color, #666); }
-    .copy-button    { margin-top: 8px; padding: 8px 16px; border: none; border-radius: 8px;
-                      background-color: var(--tg-theme-button-color, #2481cc);
-                      color: var(--tg-theme-button-text-color, #ffffff);
-                      font-size: 14px; cursor: pointer; }
-    .copy-button:active { opacity: .8; }
-    .h-captcha      { display: flex; justify-content: center; margin: 20px 0; }
-    @media (prefers-color-scheme: dark) {
-      body:not([data-theme="light"]) {
-        background-color: var(--tg-theme-bg-color,  #1f1f1f);
-        color:            var(--tg-theme-text-color, #fff);
-      }
-    }
+    body  { font-family: system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+            margin:0; padding:16px;
+            background: var(--tg-theme-bg-color,#fff);
+            color:      var(--tg-theme-text-color,#000); }
+    .container      { max-width:500px; margin:0 auto; text-align:center;
+                      padding-bottom:env(safe-area-inset-bottom); }
+    h1              { color:var(--tg-theme-button-color,#2481cc); margin:0 0 16px;
+                      font-size:20px; font-weight:600; }
+    .welcome-text   { font-size:15px; line-height:1.5; margin-bottom:24px;
+                      opacity:.8; }
+    .status-message { margin-top:16px; padding:12px; border-radius:8px;
+                      background:var(--tg-theme-secondary-bg-color,#f5f5f5);
+                      font-size:14px; }
+    .success        { color:var(--tg-theme-button-color,#28a745);    }
+    .error          { color:var(--tg-theme-destructive-text-color,#dc3545); }
+    .debug-log      { margin-top:20px; padding:12px; border-radius:8px;
+                      background:var(--tg-theme-secondary-bg-color,#f5f5f5);
+                      font-family:monospace; font-size:12px; white-space:pre-wrap;
+                      max-height:200px; overflow-y:auto; }
+    .copy-button    { margin-top:8px; padding:8px 16px; border:none; border-radius:8px;
+                      background:var(--tg-theme-button-color,#2481cc);
+                      color:var(--tg-theme-button-text-color,#fff);
+                      font-size:14px; cursor:pointer; }
+    .copy-button:active{opacity:.8;}
+    .h-captcha      { display:flex; justify-content:center; margin:20px 0; }
+    @media (prefers-color-scheme:dark){
+      body:not([data-theme="light"]){
+        background:var(--tg-theme-bg-color,#1f1f1f);
+        color:var(--tg-theme-text-color,#fff);}}
   </style>
 </head>
 
@@ -57,8 +48,8 @@
     <h1>Community Verification</h1>
 
     <div class="welcome-text">
-      Please complete the verification below to join our community.
-      This helps us maintain a safe environment for all members.
+      Please complete the verification below to join our community.<br/>
+      This helps us keep everyone safe.
     </div>
 
     <div class="h-captcha"
@@ -68,196 +59,135 @@
          data-error-callback="onCaptchaError"
          data-theme="auto"></div>
 
-    <div id="statusMessage" class="status-message" style="display:none;"></div>
-    <div id="debugLog"     class="debug-log"     style="display:none;"></div>
-    <button id="copyButton"  class="copy-button" style="display:none;">Copy Debug Logs</button>
-    <button id="closeButton" class="copy-button" style="display:none;margin-left:8px;">
+    <div id="status" class="status-message" style="display:none;"></div>
+    <pre  id="debug"  class="debug-log"     style="display:none;"></pre>
+    <button id="copy"  class="copy-button" style="display:none;">Copy Debug Logs</button>
+    <button id="close" class="copy-button" style="display:none;margin-left:8px;">
       Close Web App
     </button>
   </div>
 
   <script>
-    /* ---------- helpers -------------------------------------------------- */
-    const tg           = window.Telegram.WebApp;
-    const statusEl     = document.getElementById('statusMessage');
-    const debugEl      = document.getElementById('debugLog');
-    const copyBtn      = document.getElementById('copyButton');
-    const closeBtn     = document.getElementById('closeButton');
+  /* ---------- utilities ------------------------------------------------ */
+  const tg      = window.Telegram.WebApp;
+  const $status = document.getElementById('status');
+  const $debug  = document.getElementById('debug');
+  const $copy   = document.getElementById('copy');
+  const $close  = document.getElementById('close');
 
-    let hCaptchaToken  = null;
-    let isVerifying    = false;
-    const debugLines   = [];
+  let token      = null;          // hCaptcha
+  let verifying  = false;
+  const lines    = [];
+  const log = (msg, t='info') => {
+    const str = typeof msg === 'object' ? JSON.stringify(msg) : msg;
+    lines.push(`[${new Date().toLocaleTimeString()}] ${str}`);
+    $debug.textContent = lines.join('\n');
+    $debug.style.display='block';
+    $copy .style.display='inline-block';
+  };
 
-    function log (msg, type='info') {
-      const ts   = new Date().toLocaleTimeString();
-      const line = `[${ts}] ${typeof msg === 'object' ? JSON.stringify(msg) : msg}`;
-      debugLines.push(line);
-      debugEl.textContent   = debugLines.join('\n');
-      debugEl.style.display = 'block';
-      debugEl.scrollTop     = debugEl.scrollHeight;
-      copyBtn.style.display = 'inline-block';
+  /* ---------- clipboard / close --------------------------------------- */
+  $copy.onclick = async () => {
+    await navigator.clipboard.writeText(lines.join('\n'));
+    $copy.textContent='Copied!';
+    setTimeout(()=>{$copy.textContent='Copy Debug Logs';},2000);
+  };
+  $close.onclick = ()=>{ try{tg.close();}catch{window.close();} };
+
+  /* ---------- init ---------------------------------------------------- */
+  log('Initializing Telegram Web App…');
+  log({platform:tg.platform, version:tg.version, initLen:tg.initData?.length});
+
+  tg.ready(); tg.expand();
+  document.body.setAttribute('data-theme', tg.colorScheme);
+
+  tg.MainButton.setParams({
+    text:'COMPLETE VERIFICATION', is_visible:false,
+    color:tg.themeParams.button_color,
+    text_color:tg.themeParams.button_text_color
+  });
+
+  /* ---------- captcha hooks ------------------------------------------ */
+  window.onCaptchaSuccess = t => {
+    token = t;
+    $status.className='status-message success';
+    $status.style.display='block';
+    $status.textContent='Captcha solved! Tap the button below.';
+    tg.MainButton.show();
+  };
+  window.onCaptchaExpired = ()=>{ token=null; tg.MainButton.hide(); };
+  window.onCaptchaError   = e => { log(`Captcha error: ${e}`,'error'); };
+
+  /* ---------- submission --------------------------------------------- */
+  async function submit () {
+    if (!token || verifying) return;
+    verifying=true;
+
+    /* session discovery --------------------------------------------- */
+    let session=null, userData={};
+    try {
+      if (tg.initData) {
+        const p=new URLSearchParams(tg.initData);
+        userData=Object.fromEntries(p);
+        if (userData.user) userData.user=JSON.parse(decodeURIComponent(userData.user));
+      }
+
+      if (tg.initDataUnsafe?.query_id) {               // from web_app button
+        session=tg.initDataUnsafe.query_id;
+        log(`session via query_id = ${session}`);
+      }
+      if (!session && tg.initDataUnsafe?.start_param){ // from ?startapp=
+        session=tg.initDataUnsafe.start_param;
+        log(`session via start_param = ${session}`);
+      }
+      if (!session){                                   // legacy ?session=
+        session=new URLSearchParams(location.search).get('session');
+        if (session) log(`session via query = ${session}`);
+      }
+    } catch(e){log(e,'error');}
+
+    if (!session){
+      log('❌ No sessionId found','error');
+      $status.className='status-message error';
+      $status.style.display='block';
+      $status.textContent='Invalid verification link. Please retry.';
+      verifying=false; return;
     }
 
-    copyBtn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(debugLines.join('\n'));
-        copyBtn.textContent = 'Copied!';
-        setTimeout(() => copyBtn.textContent = 'Copy Debug Logs', 2_000);
-      } catch (err) { log(`Error copying logs: ${err}`, 'error'); }
+    const payload={
+      userId:     (userData.user||{}).id || tg.initDataUnsafe?.user?.id,
+      timestamp:  Date.now(),
+      success:    true,
+      sessionId:  session,
+      captchaToken:token,
+      auth_date:  userData.auth_date, hash:userData.hash,
+      chat_instance:userData.chat_instance, chat_type:userData.chat_type
     };
 
-    closeBtn.onclick = () => {
-      try   { tg.close(); }
-      catch { window.close(); }
-    };
-
-    /* ---------- init ------------------------------------------------------ */
-    log('Initializing Telegram Web App…');
-    log(`Platform: ${tg.platform}`);
-    log(`Version:  ${tg.version}`);
-    log(`InitData length: ${tg.initData?.length || 0}`);
-    log(`URL: ${location.href}`);
-
-    tg.ready();           log('Web App ready');
-    tg.expand();          log('Web App expanded');
-    document.body.setAttribute('data-theme', tg.colorScheme);
-    log(`Theme: ${tg.colorScheme}`);
-
-    tg.MainButton.setParams({
-      text:       'COMPLETE VERIFICATION',
-      is_visible: false,
-      color:      tg.themeParams.button_color,
-      text_color: tg.themeParams.button_text_color
-    });
-
-    /* ---------- hCaptcha -------------------------------------------------- */
-    window.onCaptchaSuccess = token => {
-      log('hCaptcha success');
-      hCaptchaToken = token;
-      statusEl.className   = 'status-message success';
-      statusEl.style.display = 'block';
-      statusEl.textContent   = 'Verification successful! Tap the button below.';
-      tg.MainButton.setText('COMPLETE VERIFICATION');
-      tg.MainButton.show();
-    };
-    window.onCaptchaExpired = () => {
-      log('hCaptcha expired');
-      hCaptchaToken = null;
-      statusEl.className   = 'status-message error';
-      statusEl.style.display = 'block';
-      statusEl.textContent   = 'Verification expired. Please try again.';
-      tg.MainButton.hide();
-    };
-    window.onCaptchaError = e => {
-      log(`hCaptcha error: ${e}`, 'error');
-      statusEl.className   = 'status-message error';
-      statusEl.style.display = 'block';
-      statusEl.textContent   = 'An error occurred. Please try again.';
-      tg.MainButton.hide();
-    };
-
-    /* ---------- verification flow ---------------------------------------- */
-    async function completeVerification () {
-      log('Begin verification…');
-
-      if (!hCaptchaToken || isVerifying) {
-        log(`Blocked: token=${!!hCaptchaToken} verifying=${isVerifying}`);
-        return;
-      }
-      isVerifying = true;
-
-      /* session lookup --------------------------------------------------- */
-      let sessionId   = null;
-      let userData    = {};
-      try {
-        if (tg.initData) {                       // guard against empty string
-          const p = new URLSearchParams(tg.initData);
-          userData = Object.fromEntries(p);
-          if (userData.user)
-            userData.user = JSON.parse(decodeURIComponent(userData.user));
-          log(`User parsed: ${userData.user.id} (${userData.user.username||'no username'})`);
-        }
-
-        // 1) query_id available when launched from *real* web_app button
-        if (tg.initDataUnsafe?.query_id) {
-          sessionId = tg.initDataUnsafe.query_id;
-          log(`Found sessionId via query_id: ${sessionId}`);
-        }
-        // 2) fallback: ?session=… in the URL
-        if (!sessionId) {
-          sessionId = new URLSearchParams(location.search).get('session');
-          if (sessionId) log(`Found sessionId via query-string: ${sessionId}`);
-        }
-
-        log('Available data dump:',
-            { hasInitData: !!tg.initData, initDataUnsafe: tg.initDataUnsafe,
-              userData, urlParams: Object.fromEntries(new URLSearchParams(location.search)) });
-
-      } catch (err) { log(`Data parse error: ${err}`, 'error'); }
-
-      if (!sessionId) {
-        log('ERROR: No sessionId found');
-        statusEl.className   = 'status-message error';
-        statusEl.style.display = 'block';
-        statusEl.textContent   = 'Invalid verification link. Please start again.';
-        isVerifying = false;
-        return;
-      }
-
-      /* assemble payload ------------------------------------------------- */
-      const payload = {
-        userId:   userData?.user?.id || tg.initDataUnsafe?.user?.id,
-        timestamp: Date.now(),
-        success:   true,
-        sessionId,
-        captchaToken: hCaptchaToken,
-        auth_date:    userData?.auth_date,
-        hash:         userData?.hash,
-        chat_instance:userData?.chat_instance,
-        chat_type:    userData?.chat_type
-      };
-      log(`Payload ready for user ${payload.userId}`);
-
-      /* send back to bot ------------------------------------------------- */
-      tg.MainButton.showProgress();
-      statusEl.className   = 'status-message';
-      statusEl.style.display = 'block';
-      statusEl.textContent   = 'Completing verification…';
-
-      try {
-        await tg.sendData(JSON.stringify(payload));
-        log('Data sent to bot');
-        tg.MainButton.hideProgress();
-        tg.MainButton.hide();
-        statusEl.className = 'status-message success';
-        statusEl.textContent = 'Verification complete! Tap “Close Web App”.';
-        closeBtn.style.display = 'inline-block';
-      } catch (err) {
-        log(`sendData error: ${err}`, 'error');
-        tg.MainButton.hideProgress();
-        statusEl.className = 'status-message error';
-        statusEl.textContent = 'Failed to contact bot. Please try again.';
-        isVerifying = false;
-      }
+    tg.MainButton.showProgress();
+    try {
+      await tg.sendData(JSON.stringify(payload));
+      tg.MainButton.hideProgress(); tg.MainButton.hide();
+      $status.className='status-message success';
+      $status.style.display='block';
+      $status.textContent='Verified! Tap “Close Web App”.';
+      $close.style.display='inline-block';
+    } catch(e){
+      log(`sendData error: ${e}`,'error');
+      tg.MainButton.hideProgress();
+      $status.className='status-message error';
+      $status.style.display='block';
+      $status.textContent='Network error. Please try again.';
+      verifying=false;
     }
+  }
 
-    tg.MainButton.onClick(completeVerification);
-    tg.BackButton.onClick(() => { try { tg.close(); } catch { window.close(); } });
+  tg.MainButton.onClick(submit);
+  tg.BackButton.onClick(()=>{try{tg.close();}catch{window.close();}});
 
-    /* ---------- global error trapping ---------------------------------- */
-    addEventListener('error', e => {
-      log(`Global error: ${e.error}`, 'error');
-      statusEl.className   = 'status-message error';
-      statusEl.style.display = 'block';
-      statusEl.textContent   = 'An unexpected error occurred.';
-    });
-    addEventListener('unhandledrejection', e => {
-      log(`Unhandled rejection: ${e.reason}`, 'error');
-      statusEl.className   = 'status-message error';
-      statusEl.style.display = 'block';
-      statusEl.textContent   = 'An unexpected error occurred.';
-    });
-    if (tg.onEvent) tg.onEvent('error', err => log(`WebApp error: ${err}`, 'error'));
+  addEventListener('error',   e=>log(`Global error: ${e.error}`,'error'));
+  addEventListener('unhandledrejection',e=>log(`Unhandled: ${e.reason}`,'error'));
+  if (tg.onEvent) tg.onEvent('error', e=>log(`WebApp error: ${e}`,'error'));
   </script>
 </body>
 </html>
