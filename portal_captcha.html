@@ -36,28 +36,6 @@
             color: var(--tg-theme-text-color, #333);
             opacity: 0.8;
         }
-        .verification-button {
-            background-color: var(--tg-theme-button-color, #2481cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            margin: 16px 0;
-            transition: opacity 0.2s;
-            display: none;
-            width: 100%;
-            max-width: 320px;
-        }
-        .verification-button:hover {
-            opacity: 0.95;
-        }
-        .verification-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
         .status-message {
             margin-top: 16px;
             padding: 12px;
@@ -92,9 +70,6 @@
             This helps us maintain a safe environment for all members.
         </div>
         <div class="h-captcha" data-sitekey="a6e82c3a-3eb6-4a42-b64a-b1e80c8cecc8" data-callback="onCaptchaSuccess" data-expired-callback="onCaptchaExpired" data-error-callback="onCaptchaError" data-theme="auto"></div>
-        <button id="verifyButton" class="verification-button" disabled>
-            Complete Verification
-        </button>
         <div id="statusMessage" class="status-message" style="display: none;"></div>
     </div>
 
@@ -106,26 +81,25 @@
         // Set theme based on Telegram theme
         document.body.setAttribute('data-theme', tg.colorScheme);
         
-        const verifyButton = document.getElementById('verifyButton');
         const statusMessage = document.getElementById('statusMessage');
         let hCaptchaToken = null;
 
-        // Configure main button if needed
+        // Configure main button
         tg.MainButton.setParams({
             text: 'COMPLETE VERIFICATION',
-            is_visible: false
+            is_visible: false,
+            color: tg.themeParams.button_color,
+            text_color: tg.themeParams.button_text_color
         });
 
         window.onCaptchaSuccess = function(token) {
             console.log("hCaptcha verified");
             hCaptchaToken = token;
-            verifyButton.disabled = false;
-            verifyButton.style.display = 'block';
             statusMessage.className = 'status-message success';
             statusMessage.style.display = 'block';
-            statusMessage.textContent = 'Verification successful! Click the button to continue.';
+            statusMessage.textContent = 'Verification successful! Click the button below to continue.';
             
-            // Show Telegram's main button as an alternative
+            // Show Telegram's main button
             tg.MainButton.setText('COMPLETE VERIFICATION');
             tg.MainButton.show();
         };
@@ -133,8 +107,6 @@
         window.onCaptchaExpired = function() {
             console.log("hCaptcha expired");
             hCaptchaToken = null;
-            verifyButton.disabled = true;
-            verifyButton.style.display = 'none';
             statusMessage.className = 'status-message error';
             statusMessage.style.display = 'block';
             statusMessage.textContent = 'Verification expired. Please try again.';
@@ -166,8 +138,7 @@
             };
             
             // Show loading state
-            verifyButton.disabled = true;
-            tg.MainButton.disable();
+            tg.MainButton.showProgress();
             statusMessage.className = 'status-message';
             statusMessage.textContent = 'Completing verification...';
             
@@ -187,13 +158,11 @@
                 console.error('Error sending verification data:', error);
                 statusMessage.className = 'status-message error';
                 statusMessage.textContent = 'Error completing verification. Please try again.';
-                verifyButton.disabled = false;
-                tg.MainButton.enable();
+                tg.MainButton.hideProgress();
             }
         }
 
-        // Add click handlers for both buttons
-        verifyButton.addEventListener('click', completeVerification);
+        // Add click handler for the main button
         tg.MainButton.onClick(completeVerification);
 
         // Handle back button
