@@ -63,6 +63,19 @@
             overflow-y: auto;
             color: var(--tg-theme-text-color, #666);
         }
+        .copy-button {
+            margin-top: 8px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .copy-button:active {
+            opacity: 0.8;
+        }
         .h-captcha {
             display: flex;
             justify-content: center;
@@ -86,12 +99,16 @@
         <div class="h-captcha" data-sitekey="a6e82c3a-3eb6-4a42-b64a-b1e80c8cecc8" data-callback="onCaptchaSuccess" data-expired-callback="onCaptchaExpired" data-error-callback="onCaptchaError" data-theme="auto"></div>
         <div id="statusMessage" class="status-message" style="display: none;"></div>
         <div id="debugLog" class="debug-log" style="display: none;"></div>
+        <button id="copyButton" class="copy-button" style="display: none;">Copy Debug Logs</button>
+        <button id="closeButton" class="copy-button" style="display: none; margin-left: 8px;">Close Web App</button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         const statusMessage = document.getElementById('statusMessage');
         const debugLog = document.getElementById('debugLog');
+        const copyButton = document.getElementById('copyButton');
+        const closeButton = document.getElementById('closeButton');
         let hCaptchaToken = null;
         let isVerifying = false;
         let debugMessages = [];
@@ -103,7 +120,29 @@
             debugLog.textContent = debugMessages.join('\n');
             debugLog.style.display = 'block';
             debugLog.scrollTop = debugLog.scrollHeight;
+            copyButton.style.display = 'inline-block';
         }
+
+        copyButton.addEventListener('click', () => {
+            const logsText = debugMessages.join('\n');
+            navigator.clipboard.writeText(logsText).then(() => {
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy Debug Logs';
+                }, 2000);
+            }).catch(err => {
+                log(`Error copying logs: ${err}`, 'error');
+            });
+        });
+
+        closeButton.addEventListener('click', () => {
+            try {
+                tg.close();
+            } catch (error) {
+                log(`Error closing web app: ${error}`, 'error');
+                window.close(); // Fallback
+            }
+        });
 
         // Initialize Web App
         log('Initializing Telegram Web App...');
@@ -197,18 +236,11 @@
                 
                 // Show success message
                 statusMessage.className = 'status-message success';
-                statusMessage.textContent = 'Verification complete! Closing...';
+                statusMessage.textContent = 'Verification complete! Click "Close Web App" when ready.';
                 
-                // Close the web app after a short delay
-                setTimeout(() => {
-                    log('Closing web app...');
-                    try {
-                        tg.close();
-                    } catch (error) {
-                        log(`Error closing web app: ${error}`, 'error');
-                        window.close(); // Fallback
-                    }
-                }, 1000);
+                // Show close button instead of auto-closing
+                closeButton.style.display = 'inline-block';
+                tg.MainButton.hide();
             } catch (error) {
                 log(`Error sending verification data: ${error}`, 'error');
                 statusMessage.className = 'status-message error';
