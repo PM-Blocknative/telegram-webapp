@@ -210,39 +210,32 @@
             isVerifying = true;
             log('Setting up verification data...');
             
-            // Get session ID from initData
+            // Get session data from initDataUnsafe
             let sessionId;
             try {
-                // Parse the raw initData string
-                const rawInitData = tg.initData;
-                log(`Raw initData: ${rawInitData}`);
+                const webAppData = tg.initDataUnsafe;
+                log('Web App Data:', webAppData);
                 
-                // Split the initData into key-value pairs
-                const params = new URLSearchParams(rawInitData);
-                
-                // Get the start_param if it exists
-                if (params.has('start_param')) {
-                    const startParam = params.get('start_param');
-                    log(`Found start_param: ${startParam}`);
-                    try {
-                        const startData = JSON.parse(decodeURIComponent(startParam));
-                        sessionId = startData.sessionId;
-                        log(`Parsed session ID: ${sessionId}`);
-                    } catch (e) {
-                        log(`Error parsing start_param: ${e}`);
+                if (webAppData && webAppData.start_param) {
+                    const data = JSON.parse(webAppData.start_param);
+                    if (data.type === 'verification' && data.sessionId) {
+                        sessionId = data.sessionId;
+                        log(`Found session ID in web app data: ${sessionId}`);
+                    } else {
+                        log('Invalid verification data format');
                     }
                 } else {
-                    log('No start_param found in initData');
+                    log('No start_param found in web app data');
                 }
             } catch (error) {
-                log(`Error parsing initData: ${error}`);
+                log(`Error parsing web app data: ${error}`);
             }
             
             if (!sessionId) {
-                log('ERROR: No session ID found in initData');
+                log('ERROR: No valid session ID found');
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
-                statusMessage.textContent = 'Error: Invalid verification link. Please try again.';
+                statusMessage.textContent = 'Error: Invalid verification session. Please try again.';
                 isVerifying = false;
                 return;
             }
