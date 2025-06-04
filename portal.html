@@ -210,64 +210,50 @@
             isVerifying = true;
             log('Setting up verification data...');
             
-            // Get session ID from initData with validation
+            // Get session ID from various sources
             let sessionId;
             let userData;
             
             try {
-                // First try to get the raw initData from Telegram object
-                if (tg.initData) {
-                    log('Using initData from Telegram object');
-                    const params = new URLSearchParams(tg.initData);
-                    userData = Object.fromEntries(params);
-                } else {
-                    // Fallback: Parse from URL hash
-                    log('Falling back to URL hash parsing');
-                    const hash = window.location.hash;
-                    const hashParams = new URLSearchParams(hash.replace('#', ''));
-                    const webAppData = hashParams.get('tgWebAppData');
-                    if (webAppData) {
-                        const params = new URLSearchParams(decodeURIComponent(webAppData));
-                        userData = Object.fromEntries(params);
-                    }
-                }
+                // Parse the initData
+                const params = new URLSearchParams(tg.initData);
+                userData = Object.fromEntries(params);
                 
-                // Parse user data if present
                 if (userData?.user) {
-                    try {
-                        userData.user = JSON.parse(decodeURIComponent(userData.user));
-                        log(`User data parsed: ${userData.user.id} (${userData.user.username || 'no username'})`);
-                    } catch (e) {
-                        log(`Error parsing user data: ${e}`, 'error');
+                    userData.user = JSON.parse(decodeURIComponent(userData.user));
+                    log(`User data parsed: ${userData.user.id} (${userData.user.username || 'no username'})`);
+                }
+                
+                // First try to get query_id (available when launched from web_app button)
+                if (tg.initDataUnsafe?.query_id) {
+                    sessionId = tg.initDataUnsafe.query_id;
+                    log(`Found session ID from query_id: ${sessionId}`);
+                }
+                
+                // If no query_id, try URL parameters
+                if (!sessionId) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    sessionId = urlParams.get('session');
+                    if (sessionId) {
+                        log(`Found session ID from URL parameter: ${sessionId}`);
                     }
                 }
                 
-                // Try to get session ID from various sources
-                if (userData?.query_id) {
-                    sessionId = userData.query_id;
-                    log(`Found session ID from query_id: ${sessionId}`);
-                } else if (tg.initDataUnsafe?.start_param) {
-                    sessionId = tg.initDataUnsafe.start_param;
-                    log(`Found session ID in start_param: ${sessionId}`);
-                } else if (userData?.start_param) {
-                    sessionId = userData.start_param;
-                    log(`Found session ID in userData start_param: ${sessionId}`);
-                }
-                
-                // Log all available data for debugging
+                // Log available data for debugging
                 log('Available data:', {
                     hasInitData: !!tg.initData,
                     hasUserData: !!userData,
                     initDataUnsafe: tg.initDataUnsafe,
-                    userData: userData
+                    userData: userData,
+                    urlParams: Object.fromEntries(new URLSearchParams(window.location.search))
                 });
                 
             } catch (error) {
-                log(`Error parsing initData: ${error}`, 'error');
+                log(`Error parsing data: ${error}`, 'error');
             }
             
             if (!sessionId) {
-                log('ERROR: No valid session ID found in Telegram Web App parameters');
+                log('ERROR: No valid session ID found. The verification link may be invalid.');
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
                 statusMessage.textContent = 'Error: Invalid verification link. Please try again.';
