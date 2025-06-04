@@ -153,14 +153,43 @@
         function completeVerification() {
             if (!hCaptchaToken) return;
             
+            // Get query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('session_id');
+            
             const verificationData = {
                 userId: tg.initDataUnsafe.user?.id,
                 timestamp: Date.now(),
-                success: true
+                success: true,
+                sessionId: sessionId,
+                captchaToken: hCaptchaToken
             };
             
-            tg.sendData(JSON.stringify(verificationData));
-            tg.close();
+            // Show loading state
+            verifyButton.disabled = true;
+            tg.MainButton.disable();
+            statusMessage.className = 'status-message';
+            statusMessage.textContent = 'Completing verification...';
+            
+            try {
+                // Send verification data back to the bot
+                tg.sendData(JSON.stringify(verificationData));
+                
+                // Show success message
+                statusMessage.className = 'status-message success';
+                statusMessage.textContent = 'Verification complete! You can close this window.';
+                
+                // Close the web app after a short delay
+                setTimeout(() => {
+                    tg.close();
+                }, 1500);
+            } catch (error) {
+                console.error('Error sending verification data:', error);
+                statusMessage.className = 'status-message error';
+                statusMessage.textContent = 'Error completing verification. Please try again.';
+                verifyButton.disabled = false;
+                tg.MainButton.enable();
+            }
         }
 
         // Add click handlers for both buttons
