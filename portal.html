@@ -215,26 +215,53 @@
             let userData;
             
             try {
-                // Parse the initData properly
-                const params = new URLSearchParams(tg.initData);
-                userData = Object.fromEntries(params);
-                
-                if (userData.user) {
-                    userData.user = JSON.parse(userData.user);
-                    log(`User data parsed: ${userData.user.id} (${userData.user.username || 'no username'})`);
+                // First try to get the raw initData from Telegram object
+                if (tg.initData) {
+                    log('Using initData from Telegram object');
+                    const params = new URLSearchParams(tg.initData);
+                    userData = Object.fromEntries(params);
+                } else {
+                    // Fallback: Parse from URL hash
+                    log('Falling back to URL hash parsing');
+                    const hash = window.location.hash;
+                    const hashParams = new URLSearchParams(hash.replace('#', ''));
+                    const webAppData = hashParams.get('tgWebAppData');
+                    if (webAppData) {
+                        const params = new URLSearchParams(decodeURIComponent(webAppData));
+                        userData = Object.fromEntries(params);
+                    }
                 }
                 
-                // Get query_id if it exists
-                sessionId = userData.query_id;
-                if (sessionId) {
+                // Parse user data if present
+                if (userData?.user) {
+                    try {
+                        userData.user = JSON.parse(decodeURIComponent(userData.user));
+                        log(`User data parsed: ${userData.user.id} (${userData.user.username || 'no username'})`);
+                    } catch (e) {
+                        log(`Error parsing user data: ${e}`, 'error');
+                    }
+                }
+                
+                // Try to get session ID from various sources
+                if (userData?.query_id) {
+                    sessionId = userData.query_id;
                     log(`Found session ID from query_id: ${sessionId}`);
-                }
-                
-                // Fallback to start_param if no query_id
-                if (!sessionId && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                } else if (tg.initDataUnsafe?.start_param) {
                     sessionId = tg.initDataUnsafe.start_param;
                     log(`Found session ID in start_param: ${sessionId}`);
+                } else if (userData?.start_param) {
+                    sessionId = userData.start_param;
+                    log(`Found session ID in userData start_param: ${sessionId}`);
                 }
+                
+                // Log all available data for debugging
+                log('Available data:', {
+                    hasInitData: !!tg.initData,
+                    hasUserData: !!userData,
+                    initDataUnsafe: tg.initDataUnsafe,
+                    userData: userData
+                });
+                
             } catch (error) {
                 log(`Error parsing initData: ${error}`, 'error');
             }
@@ -257,7 +284,9 @@
                 sessionId: sessionId,
                 captchaToken: hCaptchaToken,
                 auth_date: userData?.auth_date,
-                hash: userData?.hash
+                hash: userData?.hash,
+                chat_instance: userData?.chat_instance,
+                chat_type: userData?.chat_type
             };
             log(`User ID: ${verificationData.userId}`);
             log('Verification data prepared');
