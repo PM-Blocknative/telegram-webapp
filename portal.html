@@ -146,27 +146,11 @@
 
         // Initialize Web App
         log('Initializing Telegram Web App...');
-        
-        // Check if Telegram WebApp is available
-        if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) {
-            log('ERROR: Telegram WebApp not available!', 'error');
-            statusMessage.className = 'status-message error';
-            statusMessage.style.display = 'block';
-            statusMessage.textContent = 'Error: This page must be opened from Telegram.';
-            return;
-        }
-        
         log(`Platform: ${tg.platform}`);
         log(`Version: ${tg.version}`);
         log(`Init Data Length: ${tg.initData?.length || 0}`);
-        log(`Init Data Raw: ${tg.initData}`);
         log(`Full URL: ${window.location.href}`);
         log(`Hash: ${window.location.hash}`);
-        
-        // Check if properly initialized
-        if (!tg.initData || tg.initData.length === 0) {
-            log('WARNING: No initData found - Web App may not be properly initialized', 'error');
-        }
         
         tg.ready();
         log('Web App Ready');
@@ -226,6 +210,8 @@
             isVerifying = true;
             log('Setting up verification data...');
             
+            // Get session ID from various sources
+            let sessionId;
             let userData;
             
             try {
@@ -238,45 +224,58 @@
                     log(`User data parsed: ${userData.user.id} (${userData.user.username || 'no username'})`);
                 }
                 
+                // First try to get query_id (available when launched from web_app button)
+                if (tg.initDataUnsafe?.query_id) {
+                    sessionId = tg.initDataUnsafe.query_id;
+                    log(`Found session ID from query_id: ${sessionId}`);
+                }
+                
+                // If no query_id, try URL parameters
+                if (!sessionId) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    sessionId = urlParams.get('session');
+                    if (sessionId) {
+                        log(`Found session ID from URL parameter: ${sessionId}`);
+                    }
+                }
+                
                 // Log available data for debugging
                 log('Available data:', {
                     hasInitData: !!tg.initData,
                     hasUserData: !!userData,
                     initDataUnsafe: tg.initDataUnsafe,
-                    userData: userData
+                    userData: userData,
+                    urlParams: Object.fromEntries(new URLSearchParams(window.location.search))
                 });
                 
             } catch (error) {
                 log(`Error parsing data: ${error}`, 'error');
             }
             
-            // Ensure we have user ID
-            const userId = userData?.user?.id || tg.initDataUnsafe?.user?.id;
-            if (!userId) {
-                log('ERROR: No user ID found. Cannot proceed with verification.');
+            if (!sessionId) {
+                log('ERROR: No valid session ID found. The verification link may be invalid.');
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
-                statusMessage.textContent = 'Error: Unable to identify user. Please try again.';
+                statusMessage.textContent = 'Error: Invalid verification link. Please try again.';
                 isVerifying = false;
                 return;
             }
             
-            log(`User ID: ${userId}`);
+            log(`Using session ID: ${sessionId}`);
             
             const verificationData = {
-                userId: userId,
+                userId: userData?.user?.id || tg.initDataUnsafe?.user?.id,
                 timestamp: Date.now(),
                 success: true,
-                // Note: We're not sending sessionId - the bot will look it up
+                sessionId: sessionId,
                 captchaToken: hCaptchaToken,
                 auth_date: userData?.auth_date,
                 hash: userData?.hash,
                 chat_instance: userData?.chat_instance,
                 chat_type: userData?.chat_type
             };
-            
+            log(`User ID: ${verificationData.userId}`);
             log('Verification data prepared');
-            log(`Sending data: ${JSON.stringify(verificationData, null, 2)}`);
             
             // Show loading state
             tg.MainButton.showProgress();
@@ -285,39 +284,17 @@
             
             try {
                 log('Sending verification data to bot...');
-                log(`Data being sent: ${JSON.stringify(verificationData)}`);
-                
-                // Ensure the data is valid before sending
-                if (!tg.initData || tg.initData.length === 0) {
-                    throw new Error('No initData available - Web App not properly initialized');
-                }
-                
                 // Send verification data back to the bot
-                tg.sendData(JSON.stringify(verificationData));
-                log('tg.sendData() called successfully');
+                await tg.sendData(JSON.stringify(verificationData));
+                log('Verification data sent successfully');
                 
-                // The sendData is async but doesn't return a promise
-                // Wait a bit to see if any errors occur
-                setTimeout(() => {
-                    log('No errors after 1 second, assuming success');
-                    
-                    // Show success message
-                    statusMessage.className = 'status-message success';
-                    statusMessage.textContent = 'Verification complete! You can close this window.';
-                    
-                    // Show close button and auto-close after a delay
-                    closeButton.style.display = 'inline-block';
-                    tg.MainButton.hide();
-                    
-                    // Auto-close after 3 seconds
-                    setTimeout(() => {
-                        try {
-                            tg.close();
-                        } catch (error) {
-                            log(`Error auto-closing: ${error}`, 'error');
-                        }
-                    }, 3000);
-                }, 1000);
+                // Show success message
+                statusMessage.className = 'status-message success';
+                statusMessage.textContent = 'Verification complete! Click "Close Web App" when ready.';
+                
+                // Show close button instead of auto-closing
+                closeButton.style.display = 'inline-block';
+                tg.MainButton.hide();
             } catch (error) {
                 log(`Error sending verification data: ${error}`, 'error');
                 statusMessage.className = 'status-message error';
@@ -370,4 +347,4 @@
         }
     </script>
 </body>
-</html>
+</html> 
