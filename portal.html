@@ -270,18 +270,20 @@
             
             try {
                 log('Sending verification data to bot...');
-                log(`Data being sent: ${JSON.stringify(verificationData)}`);
+                log(`BEFORE sendData: ${JSON.stringify(verificationData)}`);
+                tg.sendData(JSON.stringify(verificationData));
+                log('AFTER tg.sendData() called successfully');
                 
-                // Ensure the data is valid before sending
-                if (!tg.initData || tg.initData.length === 0) {
-                    throw new Error('No initData available - Web App not properly initialized');
+                // Add event listener for errors (if supported)
+                if (tg.onEvent) {
+                    tg.onEvent('webapp_data_sent', () => {
+                        log('WebApp data sent callback fired');
+                    });
+                    tg.onEvent('webapp_data_error', (error) => {
+                        log(`WebApp data error: ${error}`, 'error');
+                    });
                 }
                 
-                // Send verification data back to the bot
-                tg.sendData(JSON.stringify(verificationData));
-                log('tg.sendData() called successfully');
-                
-                // The sendData is async but doesn't return a promise
                 // Wait a bit to see if any errors occur
                 setTimeout(() => {
                     log('No errors after 1 second, assuming success');
