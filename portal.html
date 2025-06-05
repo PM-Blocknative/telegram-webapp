@@ -271,6 +271,12 @@
             try {
                 log('Sending verification data to bot...');
                 log(`BEFORE sendData: ${JSON.stringify(verificationData)}`);
+                
+                // Ensure the data is valid before sending
+                if (!tg.initData || tg.initData.length === 0) {
+                    log('WARNING: No initData available - Web App might not be properly initialized');
+                }
+                
                 tg.sendData(JSON.stringify(verificationData));
                 log('AFTER tg.sendData() called successfully');
                 
