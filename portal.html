@@ -277,8 +277,13 @@
                     log('WARNING: No initData available - Web App might not be properly initialized');
                 }
                 
+                // METHOD 1: Send data via tg.sendData
                 tg.sendData(JSON.stringify(verificationData));
                 log('AFTER tg.sendData() called successfully');
+                
+                // METHOD 2: Also create a simple verification string format as fallback
+                const simpleData = `verification:true:${hCaptchaToken}`;
+                log('FALLBACK: Also preparing simple verification string format');
                 
                 // Add event listener for errors (if supported)
                 if (tg.onEvent) {
@@ -289,6 +294,17 @@
                         log(`WebApp data error: ${error}`, 'error');
                     });
                 }
+                
+                // METHOD 3: Close with a message - this is another approach that might work
+                setTimeout(() => {
+                    // On desktop clients, this might be more reliable
+                    log('FALLBACK: Using tg.close() with payload as alternative method');
+                    try {
+                        tg.close(simpleData);
+                    } catch (error) {
+                        log(`Error using tg.close with data: ${error}`, 'error');
+                    }
+                }, 500);
                 
                 // Wait a bit to see if any errors occur
                 setTimeout(() => {
