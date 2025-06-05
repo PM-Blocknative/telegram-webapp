@@ -251,6 +251,7 @@
                 userId: userId,
                 timestamp: Date.now(),
                 success: true,
+                type: 'verification_result',
                 // Note: We're not sending sessionId - the bot will look it up
                 captchaToken: hCaptchaToken,
                 auth_date: userData?.auth_date,
