@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Community Portal</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="config.js"></script>
     <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
     <style>
         :root {
@@ -252,12 +253,12 @@
                 timestamp: Date.now(),
                 success: true,
                 type: 'verification_result',
-                // Note: We're not sending sessionId - the bot will look it up
                 captchaToken: hCaptchaToken,
                 auth_date: userData?.auth_date,
                 hash: userData?.hash,
                 chat_instance: userData?.chat_instance,
-                chat_type: userData?.chat_type
+                chat_type: userData?.chat_type,
+                raw_init_data: tg.initData // Include the raw init data for validation
             };
             
             log('Verification data prepared');
@@ -269,66 +270,90 @@
             statusMessage.textContent = 'Completing verification...';
             
             try {
-                log('Sending verification data to bot...');
-                log(`BEFORE sendData: ${JSON.stringify(verificationData)}`);
+                // WEBHOOK APPROACH: Send verification data to a webhook endpoint
+                log('Sending verification data to webhook...');
                 
-                // Ensure the data is valid before sending
-                if (!tg.initData || tg.initData.length === 0) {
-                    log('WARNING: No initData available - Web App might not be properly initialized');
+                // When using as a static page (e.g., GitHub Pages), create a 'config.js' file.
+                if (!window.SERVER_API_URL) {
+                    const errorMsg = 'SERVER_API_URL is not configured. Please create config.js for static deployment.';
+                    log(errorMsg, 'error');
+                    statusMessage.className = 'status-message error';
+                    statusMessage.style.display = 'block';
+                    statusMessage.textContent = 'Configuration error: The portal is not set up correctly.';
+                    tg.MainButton.hideProgress();
+                    isVerifying = false;
+                    return;
                 }
                 
-                // METHOD 1: Send data via tg.sendData
-                tg.sendData(JSON.stringify(verificationData));
-                log('AFTER tg.sendData() called successfully');
+                const webhookUrl = window.SERVER_API_URL;
+                log(`Using webhook URL: ${webhookUrl}`);
                 
-                // METHOD 2: Also create a simple verification string format as fallback
-                const simpleData = `verification:true:${hCaptchaToken}`;
-                log('FALLBACK: Also preparing simple verification string format');
+                // Send the verification data to the webhook
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(verificationData)
+                });
                 
-                // Add event listener for errors (if supported)
-                if (tg.onEvent) {
-                    tg.onEvent('webapp_data_sent', () => {
-                        log('WebApp data sent callback fired');
-                    });
-                    tg.onEvent('webapp_data_error', (error) => {
-                        log(`WebApp data error: ${error}`, 'error');
-                    });
-                }
-                
-                // METHOD 3: Close with a message - this is another approach that might work
-                setTimeout(() => {
-                    // On desktop clients, this might be more reliable
-                    log('FALLBACK: Using tg.close() with payload as alternative method');
-                    try {
-                        tg.close(simpleData);
-                    } catch (error) {
-                        log(`Error using tg.close with data: ${error}`, 'error');
-                    }
-                }, 2500);
-                
-                // Wait a bit to see if any errors occur
-                setTimeout(() => {
-                    log('No errors after 1 second, assuming success');
+                // Handle the response
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`Webhook response: ${JSON.stringify(result)}`);
                     
-                    // Show success message
-                    statusMessage.className = 'status-message success';
-                    statusMessage.textContent = 'Verification complete! You can close this window.';
-                    
-                    // Show close button and auto-close after a delay
-                    closeButton.style.display = 'inline-block';
-                    tg.MainButton.hide();
-                    
-                    // Auto-close after 3 seconds
-                    setTimeout(() => {
+                    if (result.success) {
+                        log('Webhook verification successful!');
+                        
+                        // Show success message
+                        statusMessage.className = 'status-message success';
+                        statusMessage.textContent = 'Verification complete! You can close this window.';
+                        
+                        // Also try the original method as a fallback
                         try {
-                            tg.close();
-                        } catch (error) {
-                            log(`Error auto-closing: ${error}`, 'error');
+                            log('Also trying tg.sendData as fallback...');
+                            tg.sendData(JSON.stringify(verificationData));
+                        } catch (sendError) {
+                            log(`Error in fallback sendData: ${sendError}`, 'error');
                         }
-                    }, 3000);
-                }, 1000);
+                        
+                        // Show close button
+                        closeButton.style.display = 'inline-block';
+                        tg.MainButton.hide();
+                        
+                        // Auto-close after 3 seconds
+                        setTimeout(() => {
+                            try {
+                                tg.close();
+                            } catch (error) {
+                                log(`Error auto-closing: ${error}`, 'error');
+                            }
+                        }, 3000);
+                    } else {
+                        log(`Webhook verification failed: ${result.error || 'Unknown error'}`, 'error');
+                        statusMessage.className = 'status-message error';
+                        statusMessage.textContent = result.error || 'Verification failed. Please try again.';
+                        tg.MainButton.hideProgress();
+                        isVerifying = false;
+                    }
+                } else {
+                    // Try to parse error response
+                    let errorMessage = 'Error connecting to verification server.';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                        log(`Webhook error response: ${JSON.stringify(errorData)}`, 'error');
+                    } catch (e) {
+                        log(`Webhook request failed: ${response.status} ${response.statusText}`, 'error');
+                    }
+                    
+                    statusMessage.className = 'status-message error';
+                    statusMessage.textContent = `${errorMessage} Please try again.`;
+                    tg.MainButton.hideProgress();
+                    isVerifying = false;
+                }
             } catch (error) {
-                log(`Error sending verification data: ${error}`, 'error');
+                log(`Error with webhook verification: ${error}`, 'error');
                 statusMessage.className = 'status-message error';
                 statusMessage.textContent = 'Error completing verification. Please try again.';
                 tg.MainButton.hideProgress();
